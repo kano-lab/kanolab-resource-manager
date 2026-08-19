@@ -1,23 +1,57 @@
 # User Guide
 
-This guide is for users of the deployed lab-resource-manager system.
+## Table of Contents
 
-## Slack Commands
+- [Introduction](#introduction)
+- [Getting Started](#getting-started)
+  - [1. Register Your Email Address](#1-register-your-email-address)
+  - [2. Reserve a Resource](#2-reserve-a-resource)
+- [Reserving Directly in Your Calendar App](#reserving-directly-in-your-calendar-app)
+- [Notifications](#notifications)
+  - [Notification Content](#notification-content)
+  - [Buttons on Notification Messages](#buttons-on-notification-messages)
+  - [When a Reservation Goes Unused](#when-a-reservation-goes-unused)
+- [Using AI Agents via MCP (Optional)](#using-ai-agents-via-mcp-optional)
+- [Slack Command Reference](#slack-command-reference)
+  - [`/register-calendar`](#register-calendar)
+  - [`/reserve`](#reserve)
+  - [`/free`](#free)
+  - [`/mcp-token`](#mcp-token)
 
-### Register Your Email Address
+## Introduction
+
+lab-resource-manager is a reservation system that manages laboratory resources, such as GPU servers and
+meeting rooms, as events in a calendar app.
+
+There are two ways to reserve a resource: use the `/reserve` command in Slack to open a modal, or
+[open your calendar app directly and create an event](#reserving-directly-in-your-calendar-app). Both
+produce the same kind of reservation, so feel free to stick with whichever one you like.
+
+The full list of commands is in the [Slack Command Reference](#slack-command-reference) at the end.
+
+## Getting Started
+
+The first time you use this, two commands get you reserving:
+
+### 1. Register Your Email Address
 
 ```text
 /register-calendar <your-email@example.com>
 ```
 
-This command links your Slack user with the default implementation (Google Calendar) and grants
-access to Google Calendar resources. We recommend registering the Gmail address you regularly use
-with Google Calendar.
+This links your Slack user to the calendar app account that actually holds the reservations.
+Register the email address you use with that calendar app.
 
-**Benefits of registration:**
+**Registering grants you:**
 
-- Automatically grants edit permissions to Google Calendar resources (GPU servers, meeting rooms, etc.)
-- Enables Slack mentions in reservation notifications
+- Automatic edit access to the calendar resources (GPU servers, meeting rooms, etc.)
+- A Slack mention whenever you have a reservation
+
+You'll get one invitation email from the calendar app for each resource you're granted access to, so a lab
+with several GPU servers and rooms means several emails at once. Accept each one.
+
+If you run `/reserve` before registering, the registration modal opens first, so you don't need to run
+this command up front.
 
 **Example:**
 
@@ -25,65 +59,36 @@ with Google Calendar.
 /register-calendar alice@example.com
 ```
 
-### Check What Is Free Right Now
+### 2. Reserve a Resource
 
 ```text
-/free
+/reserve
 ```
 
-Lists the resources you can use right now. The reply is visible only to you and is not posted to the channel.
+This opens the reservation modal.
 
-#### Reading the output
+The modal asks for:
 
-```text
-いま GPU 5台 が空いています
+- **Resource type**: GPU server or meeting room
+- **Server, or room**: chosen from a list depending on the type
+- **Devices** (GPU servers only): checkboxes for which devices to use. Leave them all unchecked to reserve the whole server
+- **Start and end time**: defaults to now through one hour from now
+- **Notes** (optional): free text
 
-GPU             0  1  2  3
-gpu-server-1    .  #  #  .
-gpu-server-2    #  .  .  .
+On submit, you get an ephemeral message with the reservation ID if it succeeded, or one naming the
+conflicting reservation, resource, and time if it didn't.
 
-`.` 空き 　`#` 使用中
+Use `/free` if you want to check what's available first. Its response also carries a "Reserve what's
+free" button that opens this same modal.
 
-部屋
-🔴 Meeting Room A — @tanaka 〜16:00
+**Note**: if the input is invalid, for example the start time is after the end time, the modal just
+closes without an error message and no reservation is created. If your reservation doesn't show up,
+double-check the times and try again.
 
-使用中のGPU
-🔴 gpu-server-1 1,2 — @sato 〜18:00
-🔴 gpu-server-2 0 — @tanaka 〜明日 09:00
-```
+## Reserving Directly in Your Calendar App
 
-Each column of the grid corresponds to a device number, showing which numbers are free.
-The list below it names the reserver and end time for whatever is taken.
-
-When everything is taken, the reply names the resource that frees up soonest and when.
-
-#### Looking further ahead
-
-Buttons under the reply switch which day you are looking at.
-
-```text
-[ いま ] [ 今日 ] [ 明日 ] [ 他の日 ▾ ]
-```
-
-"他の日" covers the coming week. You never type a date. Picking a day switches the reply to
-the free time slots for each resource on that day.
-
-```text
-8月3日（月） 明日 の空き
-✅ gpu-server-1 0 — 終日
-✅ gpu-server-1 1 — 〜13:00, 17:00〜
-この日は空きなし: gpu-server-1 2
-```
-
-`〜13:00` means from the start of the day until 13:00, and `17:00〜` means from 17:00 until the
-end of the day. Looking at today leaves out the hours that have already passed.
-
-#### Reserving straight away
-
-The "空いているものを予約" button opens the reservation modal with the server that has the most
-free devices selected, and those devices already checked. You can change the selection or submit as is.
-
-## Resource Reservation Syntax
+You can also reserve a resource without Slack, by opening your calendar app directly and creating an
+event. The `/reserve` modal creates the same kind of event internally.
 
 ### Device Specification Format
 
@@ -98,7 +103,7 @@ When reserving resources like GPU servers, you can specify which devices to use 
 
 #### Reservation Examples
 
-In the Google Calendar event title, write the device specification:
+In the calendar event title, write the device specification:
 
 ```text
 0-2
@@ -117,7 +122,7 @@ description, use the event's description field instead.
 
 ### Meeting Room Reservations
 
-For meeting room reservations, device specification is not needed. Simply create a Google Calendar
+For meeting room reservations, device specification is not needed. Simply create a calendar
 event as usual.
 
 ```text
@@ -126,7 +131,7 @@ Lab Meeting
 
 ## Notifications
 
-The system periodically monitors Google Calendar resource usage and sends notifications to the
+The system periodically monitors resource usage in the calendar app and sends notifications to the
 configured Slack channels when changes are detected.
 
 ### Notification Content
@@ -153,9 +158,9 @@ Reservation notifications carry buttons for acting on your own reservations.
 Use "⏹️ End now" when you finish earlier than planned, and "❌ Cancel" when you are not
 going to use the resource at all. You can only act on reservations you own.
 
-## When a Reservation Goes Unused
+### When a Reservation Goes Unused
 
-In labs where GPU usage monitoring is enabled, the bot sends you a direct message when a
+When GPU usage monitoring is enabled, the bot sends you a direct message when a
 GPU you reserved has gone unused for a while. There are two cases:
 
 - **None of your processes are there**: nothing of yours is running on the GPU you reserved
@@ -192,7 +197,7 @@ Some reservations are never reported:
 
 ## Using AI Agents via MCP (Optional)
 
-If your lab has enabled the MCP (Model Context Protocol) server, you can let agents like
+If the MCP (Model Context Protocol) server is enabled, you can let agents like
 Claude Code view, create, update, end early, and cancel reservations directly on your
 behalf, without going through Slack for every request.
 
@@ -242,3 +247,54 @@ record. Cancel instead when the reservation should not have existed at all.
 
 You can only update, end early, or cancel reservations you own yourself — the same rule
 that applies to `/reserve` in Slack.
+
+## Slack Command Reference
+
+| Command | What it does |
+| --- | --- |
+| [`/register-calendar <email>`](#register-calendar) | Register your email address |
+| [`/reserve`](#reserve) | Reserve a resource |
+| [`/free`](#free) | List what's free right now |
+| [`/mcp-token`](#mcp-token) | Get an MCP access token |
+
+### `/register-calendar`
+
+```text
+/register-calendar <your-email@example.com>
+```
+
+Links your Slack user to the calendar app account that holds the reservations. Registering grants
+automatic edit access to the calendar resources and gets you a Slack mention on your own reservations.
+
+See [Getting Started](#1-register-your-email-address) for the full walkthrough.
+
+### `/reserve`
+
+```text
+/reserve
+```
+
+Opens the reservation modal. Specify the resource type (GPU server or meeting room), the target,
+devices, start/end time, and notes, then submit to create the reservation.
+
+See [Getting Started](#2-reserve-a-resource) for the full walkthrough.
+
+### `/free`
+
+```text
+/free
+```
+
+Lists the resources you can use right now. The reply is visible only to you and is not posted to the channel.
+
+### `/mcp-token`
+
+```text
+/mcp-token
+```
+
+Issues an access token that lets an AI agent act on reservations through the MCP server. Requires your
+email address to already be linked via `/register-calendar`. The token is shown only to you; re-running
+the command issues a new token and immediately revokes the old one. Don't share it.
+
+See [Using AI Agents via MCP](#using-ai-agents-via-mcp-optional) for the setup walkthrough.
